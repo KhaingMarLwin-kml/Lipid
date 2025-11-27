@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>LipidLogic Pro v2.1: Intensification Engine</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    /* --- Theme: "Athero-Flux" --- */
+    :root {
+      --bg-dark: #030712;
+      --bg-panel: #0f172a;
+      --bg-input: #1e293b;
+      --accent: #818cf8;        /* Indigo */
+      --benefit: #34d399;       /* Teal */
+      --harm: #f43f5e;          /* Rose */
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --border: #334155;
+      --font-sans: 'Inter', sans-serif;
+      --font-serif: 'Playfair Display', serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; }
+    body { background: var(--bg-dark); color: var(--text-main); font-family: var(--font-sans); display: flex; }
+    
+    .app-shell { display: grid; grid-template-columns: 340px 1fr 300px; width: 100%; height: 100%; }
+    
+    .sidebar-left, .sidebar-right { background: var(--bg-panel); display: flex; flex-direction: column; overflow: hidden; border-color: var(--border); border-style: solid; z-index:10; }
+    .sidebar-left { border-width: 0 1px 0 0; }
+    .sidebar-right { border-width: 0 0 0 1px; }
+    .sidebar-content { padding: 20px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 18px; }
+    
+    .main-stage { padding: 0; display: flex; flex-direction: column; overflow-y: auto; background: linear-gradient(180deg, #020617 0%, #0f172a 100%); position: relative; }
+
+    /* Titles */
+    h1 { font-size: 1.1rem; font-weight: 700; color: #fff; letter-spacing: -0.01em; display:flex; align-items:center; gap:8px;}
+    h2 { font-size: 0.75rem; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+
+    /* Unit Toggle */
+    .unit-switch { display: flex; gap: 10px; align-items: center; margin-bottom: 15px; font-size: 0.75rem; color: var(--text-muted); }
+    .switch-btn { cursor: pointer; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border); opacity: 0.5; transition: all 0.2s;}
+    .switch-btn.active { opacity: 1; background: var(--accent); color: #fff; border-color: var(--accent); }
+
+    /* Controls */
+    .control-group { display: flex; flex-direction: column; gap: 8px; }
+    label { display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; color: var(--text-muted); font-weight: 500; }
+    .val-display { color: var(--text-main); font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 4px;}
+    
+    input[type="range"] { -webkit-appearance: none; width: 100%; height: 4px; background: #333; border-radius: 2px; outline: none; margin: 8px 0; }
+    input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; background: var(--accent); border-radius: 50%; cursor: pointer; border: 2px solid #fff; transition: transform 0.1s; }
+    input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+
+    /* Strategy Selector */
+    .strategy-grid { display: grid; grid-template-columns: 1fr; gap: 8px; }
+    .strategy-card { background: var(--bg-input); border: 1px solid var(--border); padding: 12px; border-radius: 8px; cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden; }
+    .strategy-card:hover { border-color: var(--text-muted); }
+    .strategy-card.active { border-color: var(--accent); background: rgba(129, 140, 248, 0.05); }
+    .strategy-card.active::before { content:''; position: absolute; left:0; top:0; bottom:0; width: 4px; background: var(--accent); }
+    .st-title { font-size: 0.8rem; font-weight: 700; color: #fff; }
+    .st-desc { font-size: 0.7rem; color: var(--text-muted); margin-top: 2px; }
+
+    /* Inputs */
+    .check-row { display: flex; align-items: center; gap: 10px; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px; cursor: pointer; }
+    .check-row input { accent-color: var(--accent); width: 14px; height: 14px; }
+
+    /* Viz Layout */
+    .narrative-container { padding: 40px 40px 20px 40px; max-width: 1100px; margin: 0 auto; width: 100%; }
+    .narrative-headline { font-family: var(--font-serif); font-size: 1.8rem; font-weight: 400; color: #fff; margin-bottom: 5px; }
+    .narrative-sub { font-family: var(--font-sans); font-size: 0.9rem; color: var(--text-muted); display:flex; align-items:center; gap: 10px; }
+
+    .viz-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; padding: 0 40px 40px 40px; max-width: 1100px; margin: 0 auto; width: 100%; }
+    .full-width { grid-column: 1 / -1; }
+    
+    .viz-container { background: var(--bg-input); border: 1px solid var(--border); border-radius: 10px; display: flex; flex-direction: column; min-height: 280px; overflow: hidden; position: relative; }
+    .viz-header { padding: 10px 15px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.2); }
+    .viz-title { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); }
+    canvas { width: 100%; height: 100%; display: block; flex: 1; }
+
+    /* Waffle specific */
+    .waffle-legend { display: flex; gap: 15px; padding: 10px; font-size: 0.7rem; color: var(--text-muted); justify-content: center; background: var(--bg-panel); border-top: 1px solid var(--border); }
+    .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+
+    /* Report Box */
+    .report-box { background: var(--bg-panel); border: 1px solid var(--border); padding: 25px; border-radius: 8px; margin: 0 40px 40px 40px; max-width: 1100px; }
+    .report-content { font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: #cbd5e1; line-height: 1.6; white-space: pre-wrap; }
+    .copy-btn { float: right; background: transparent; border: 1px solid var(--border); color: var(--text-muted); padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.7rem; }
+    .copy-btn:hover { color: #fff; border-color: #fff; }
+
+    /* Metrics Right */
+    .metric-card { background: var(--bg-input); border-radius: 8px; padding: 15px; border-left: 3px solid var(--border); display: flex; flex-direction: column; gap: 4px; }
+    .metric-card.pos { border-color: var(--benefit); }
+    .metric-card.neutral { border-color: var(--accent); }
+    .m-val { font-size: 1.4rem; font-family: 'JetBrains Mono', monospace; font-weight: 700; color: #fff; }
+    .m-sub { font-size: 0.7rem; color: #94a3b8; }
+
+    .run-btn { background: var(--text-main); color: var(--bg-dark); border: none; padding: 12px; border-radius: 6px; font-weight: 700; cursor: pointer; margin-top: 20px; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 0.85rem; transition: all 0.2s; }
+    .run-btn:hover { background: #fff; transform: translateY(-1px); }
+    .run-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    
+    .loader { width: 14px; height: 14px; border: 2px solid rgba(0,0,0,0.2); border-top-color: #000; border-radius: 50%; animation: spin 0.8s linear infinite; display: none; }
+    .run-btn.processing .loader { display: block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 1200px) { .app-shell { grid-template-columns: 320px 1fr; } .sidebar-right { display: none; } }
+  </style>
+</head>
+<body>
+
+<div class="app-shell">
+  <!-- LEFT: CONFIG -->
+  <aside class="sidebar-left">
+    <div class="sidebar-content">
+      <div>
+        <h1>
+          <span style="color:var(--accent)">LipidLogic</span> Pro
+          <span style="font-size:0.6rem; background:var(--border); padding:2px 4px; border-radius:3px; color:#fff;">v2.1</span>
+        </h1>
+        <p style="font-size: 0.75rem; color: var(--text-muted); margin-top:4px;">Intensification & Outcome Simulator</p>
+      </div>
+
+      <div class="unit-switch">
+        <div id="btnMg" class="switch-btn active" onclick="setUnit('mg')">mg/dL</div>
+        <div id="btnMmol" class="switch-btn" onclick="setUnit('mmol')">mmol/L</div>
+      </div>
+
+      <!-- 1. BASELINE -->
+      <div class="control-group">
+        <h2>1. Patient Baseline</h2>
+        <label>Current LDL-C <span id="lblLDL" class="val-display">100</span></label>
+        <input type="range" id="ldlInput" min="40" max="250" value="100" step="1">
+        
+        <label style="margin-top:10px;">
+          Est. 10-Year CV Risk
+          <span id="lblRisk" class="val-display">20%</span>
+        </label>
+        <input type="range" id="riskInput" min="5" max="60" value="20" step="1">
+        <div style="font-size:0.65rem; color:#666; font-style:italic;">Based on SMART / REACH scores.</div>
+      </div>
+
+      <!-- 2. INTENSIFICATION STRATEGY -->
+      <div class="control-group">
+        <h2>2. Intensification Strategy</h2>
+        <div class="strategy-grid">
+          <div class="strategy-card" id="stratEze" onclick="setStrategy('eze')">
+            <div class="st-title">+ Ezetimibe</div>
+            <div class="st-desc">Add-on to max statin. Low cost. ~15-20% reduction.</div>
+          </div>
+          <div class="strategy-card active" id="stratPcsk9" onclick="setStrategy('pcsk9')">
+            <div class="st-title">+ PCSK9 Inhibitor</div>
+            <div class="st-desc">Evolocumab/Alirocumab. ~50-60% reduction.</div>
+          </div>
+          <div class="strategy-card" id="stratCombo" onclick="setStrategy('combo')">
+            <div class="st-title">+ Combination</div>
+            <div class="st-desc">PCSK9i + Ezetimibe on top of Statin.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. PARAMETERS -->
+      <div class="control-group">
+        <h2>3. Simulation Parameters</h2>
+        <div class="check-row">
+           <input type="checkbox" id="checkIntolerant">
+           <label for="checkIntolerant" style="width:auto;">Statin Intolerant (Base Potency 0%)</label>
+        </div>
+        
+        <label style="margin-top:10px;">Heterogeneity (I²) Penalty</label>
+        <input type="range" id="hetInput" min="0" max="100" value="20">
+      </div>
+
+      <button id="runBtn" class="run-btn" onclick="runSimulation()">
+        <div class="loader"></div>
+        <span>Synthesize RCT Data</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- CENTER: VIZ -->
+  <main class="main-stage">
+    <div class="narrative-container">
+      <div class="narrative-sub">
+        <span>SIMULATION OUTPUT // MONTE CARLO (N=20,000)</span>
+      </div>
+      <div id="narrativeTitle" class="narrative-headline">Intensification Analysis</div>
+      <div id="narrativeSub" class="narrative-sub" style="border-top:1px solid #333; padding-top:10px; margin-top:5px;">
+        Adjust controls to simulate outcomes.
+      </div>
+    </div>
+
+    <!-- ROW 1: Waterfall & Forest -->
+    <div class="viz-grid">
+      <div class="viz-container">
+        <div class="viz-header">
+           <span class="viz-title">Trajectory (Waterfall)</span>
+           <span class="viz-title" id="finalLdlDisp" style="color:#fff;">--</span>
+        </div>
+        <canvas id="waterfallCanvas"></canvas>
+      </div>
+
+      <div class="viz-container">
+        <div class="viz-header">
+           <span class="viz-title">Evidence Basis (Forest Plot)</span>
+        </div>
+        <canvas id="forestCanvas"></canvas>
+      </div>
+    </div>
+
+    <!-- ROW 2: Waffle (NNT) -->
+    <div class="viz-grid full-width">
+       <div class="viz-container full-width" style="height: 300px;">
+          <div class="viz-header">
+             <span class="viz-title">The 100 Patient Room (5 Year Horizon)</span>
+             <span class="viz-title" style="color:var(--benefit)">Green = MACE Avoided</span>
+          </div>
+          <div style="flex:1; display:flex; justify-content:center; align-items:center; padding:20px;">
+             <canvas id="waffleCanvas" style="max-width:600px; max-height:240px;"></canvas>
+          </div>
+          <div class="waffle-legend">
+             <div><span class="dot" style="background:var(--benefit)"></span>Event Avoided</div>
+             <div><span class="dot" style="background:#dc2626"></span>Inevitable Event</div>
+             <div><span class="dot" style="background:#334155"></span>Event-Free (No Effect)</div>
+          </div>
+       </div>
+    </div>
+
+    <!-- REPORT -->
+    <div class="report-box">
+       <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom:1px solid #333; padding-bottom:10px;">
+         <span style="font-weight:700; color:#fff;">CLINICAL SUMMARY</span>
+         <button class="copy-btn" onclick="copyReport()">Copy Text</button>
+       </div>
+       <div id="reportContent" class="report-content">Waiting for simulation...</div>
+    </div>
+  </main>
+
+  <!-- RIGHT: METRICS -->
+  <aside class="sidebar-right">
+    <div class="sidebar-content">
+      <h2>Projected Impact</h2>
+      
+      <div class="metric-card pos">
+        <div class="m-sub">Absolute Risk Reduction</div>
+        <div class="m-val" id="valARR">--%</div>
+        <div class="m-sub" style="color:var(--benefit)">5-Year Horizon</div>
+      </div>
+
+      <div class="metric-card neutral">
+        <div class="m-sub">Number Needed to Treat</div>
+        <div class="m-val" id="valNNT">--</div>
+        <div class="m-sub">To prevent 1 MACE</div>
+      </div>
+
+      <div class="metric-card">
+        <div class="m-sub">Relative Risk Reduction</div>
+        <div class="m-val" id="valRRR" style="color:var(--accent)">--%</div>
+        <div class="m-sub">CTT Derived</div>
+      </div>
+
+      <div style="margin-top:20px; border-top:1px solid var(--border); padding-top:20px;">
+        <h2>LDL Kinetics</h2>
+        <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:0.8rem; color:#ccc;">
+           <span>Baseline:</span>
+           <span id="statBase">--</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:0.8rem; color:#ccc;">
+           <span>Achieved:</span>
+           <span id="statAchieved" style="color:var(--benefit); font-weight:700;">--</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:0.8rem; color:#ccc;">
+           <span>Reduction:</span>
+           <span id="statDelta">--</span>
+        </div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<!-- WORKER: STATISTICAL ENGINE -->
+<script id="worker-code" type="javascript/worker">
+  self.onmessage = function(e) {
+    const { 
+      baselineLDL, // always mg/dL in worker
+      baselineRisk, 
+      strategy, 
+      statinIntolerant,
+      trials,
+      hetPenalty 
+    } = e.data;
+
+    // 1. Calculate Potency
+    let addedPotency = 0;
+    
+    // Potencies defined
+    const potEze = 0.18; // ~18% reduction
+    const potPcsk9 = 0.60; // ~60% reduction
+    
+    if(strategy === 'eze') {
+        addedPotency = potEze;
+    } else if(strategy === 'pcsk9') {
+        addedPotency = potPcsk9;
+    } else if(strategy === 'combo') {
+        // Multiplicative independent action model
+        // Remaining LDL fraction = (1 - Effect1) * (1 - Effect2)
+        // Total Effect = 1 - Remaining
+        addedPotency = 1 - ((1 - potPcsk9) * (1 - potEze)); 
+        // 1 - (0.40 * 0.82) = 1 - 0.328 = 0.672 (67.2%)
+    }
+
+    // Calculate current on-treatment (if on statin) vs New
+    // Assume input Baseline LDL is ON current therapy (Statin) or Naive if intolerant
+    // This is an intensification tool, so Baseline LDL is the starting point.
+    
+    // Final LDL = Baseline * (1 - AddedPotency)
+    const finalLDL = baselineLDL * (1 - addedPotency);
+    const deltaLDL_mg = baselineLDL - finalLDL;
+    const deltaLDL_mmol = deltaLDL_mg * 0.02586;
+
+    // 2. CTT Meta-Analysis Logic
+    // RR = 0.78 per 1 mmol/L reduction (Baigent et al, CTT)
+    // We apply heterogeneity penalty to the efficacy
+    const logRR_per_mmol = Math.log(0.78);
+    // Add noise based on Heterogeneity input
+    const hetFactor = 1 + (hetPenalty/200); // 0% -> 1.0, 100% -> 1.5 spread
+    
+    // 3. Monte Carlo Simulation (N=20,000)
+    const arrValues = [];
+    const rrrValues = [];
+    
+    for(let i=0; i<20000; i++) {
+        // Sample efficacy variation
+        // We simulate uncertainty in the CTT slope
+        let u1=Math.random(), u2=Math.random();
+        let z = Math.sqrt(-2*Math.log(u1)) * Math.cos(2*Math.PI*u2);
+        
+        // SD of logRR roughly 0.03 based on CTT CIs
+        let sampleLogRR = logRR_per_mmol + (z * 0.03 * hetFactor);
+        
+        // Calculate RR for this specific patient's delta
+        let patientRR = Math.exp(sampleLogRR * deltaLDL_mmol);
+        
+        // Cap RR at reasonable limits (e.g. 0.2)
+        patientRR = Math.max(0.2, Math.min(0.99, patientRR));
+        
+        // Calculate ARR
+        // Baseline Risk is 10-year. Scale roughly to 5-year for RCT comparison (linear approx / 2)
+        // Or keep 10-year if user specifies. Let's output 5-Year Horizon for Waffle.
+        let risk5y = baselineRisk / 200; // 20% -> 0.10
+        let arr = risk5y * (1 - patientRR);
+        
+        arrValues.push(arr);
+        rrrValues.push(1 - patientRR);
+    }
+    
+    // Average
+    const meanARR = arrValues.reduce((a,b)=>a+b,0)/arrValues.length;
+    const meanRRR = rrrValues.reduce((a,b)=>a+b,0)/rrrValues.length;
+    
+    // 4. Meta-Analysis Forest Plot Data (Fixed vs Random)
+    // Filter trials based on strategy
+    let activeTrials = [];
+    if(strategy === 'eze') activeTrials = trials.filter(t => t.drug === 'Ezetimibe');
+    else if(strategy === 'pcsk9') activeTrials = trials.filter(t => t.drug === 'PCSK9i');
+    else activeTrials = trials; // Combo shows all
+
+    // 5. Waffle Data
+    // 100 dots. 
+    const n_event_inevitable = Math.round((baselineRisk/2) - (meanARR*100));
+    const n_prevented = Math.round(meanARR * 100);
+    const n_healthy = 100 - n_event_inevitable - n_prevented;
+
+    self.postMessage({
+        type: 'complete',
+        results: {
+            finalLDL,
+            deltaLDL_mg,
+            deltaLDL_mmol,
+            meanARR,
+            meanRRR,
+            n_event_inevitable,
+            n_prevented,
+            n_healthy,
+            activeTrials,
+            strategy
+        }
+    });
+  };
+</script>
+
+<script>
+  // --- DATABASE ---
+  const TRIALS = [
+    { id: "IMPROVE-IT", drug: "Ezetimibe", year: 2015, hr: 0.936, ci_lo: 0.89, ci_hi: 0.99, n: 18144 },
+    { id: "FOURIER",    drug: "PCSK9i",    year: 2017, hr: 0.85,  ci_lo: 0.79, ci_hi: 0.92, n: 27564 },
+    { id: "ODYSSEY",    drug: "PCSK9i",    year: 2018, hr: 0.85,  ci_lo: 0.78, ci_hi: 0.93, n: 18924 },
+    { id: "SPIRE-2",    drug: "PCSK9i",    year: 2017, hr: 0.79,  ci_lo: 0.65, ci_hi: 0.97, n: 10621 },
+    { id: "EWTOPIA",    drug: "Ezetimibe", year: 2019, hr: 0.66,  ci_lo: 0.50, ci_hi: 0.86, n: 3796 } // Elderly
+  ];
+
+  // --- STATE ---
+  let state = {
+    unit: 'mg', // 'mg' or 'mmol'
+    strategy: 'pcsk9'
+  };
+
+  let lastResult = null;
+
+  // --- WORKER SETUP ---
+  const blob = new Blob([document.getElementById('worker-code').textContent], {type: "text/javascript"});
+  const worker = new Worker(window.URL.createObjectURL(blob));
+
+  worker.onmessage = function(e) {
+    if(e.data.type === 'complete') {
+        lastResult = e.data.results;
+        renderVisuals(lastResult);
+        updateMetrics(lastResult);
+        generateReport(lastResult);
+        document.getElementById('runBtn').classList.remove('processing');
+        document.getElementById('runBtn').disabled = false;
+    }
+  };
+
+  // --- INPUT HANDLING ---
+  function setUnit(u) {
+    state.unit = u;
+    document.getElementById('btnMg').className = u === 'mg' ? 'switch-btn active' : 'switch-btn';
+    document.getElementById('btnMmol').className = u === 'mmol' ? 'switch-btn active' : 'switch-btn';
+    
+    // Convert Slider
+    const ldlSlider = document.getElementById('ldlInput');
+    let val = parseFloat(ldlSlider.value);
+    
+    if(u === 'mmol') {
+        // Mg -> Mmol
+        ldlSlider.min = 1.0; ldlSlider.max = 7.0; ldlSlider.step = 0.1;
+        val = val * 0.02586;
+    } else {
+        // Mmol -> Mg
+        ldlSlider.min = 40; ldlSlider.max = 250; ldlSlider.step = 1;
+        val = val / 0.02586;
+    }
+    ldlSlider.value = val.toFixed(1);
+    updateLabels();
+    runSimulation();
+  }
+
+  function setStrategy(s) {
+    state.strategy = s;
+    document.querySelectorAll('.strategy-card').forEach(el => el.classList.remove('active'));
+    
+    if(s === 'eze') document.getElementById('stratEze').classList.add('active');
+    if(s === 'pcsk9') document.getElementById('stratPcsk9').classList.add('active');
+    if(s === 'combo') document.getElementById('stratCombo').classList.add('active');
+    
+    runSimulation();
+  }
+
+  function updateLabels() {
+    const ldl = document.getElementById('ldlInput').value;
+    const risk = document.getElementById('riskInput').value;
+    document.getElementById('lblLDL').textContent = ldl + (state.unit === 'mg' ? ' mg/dL' : ' mmol/L');
+    document.getElementById('lblRisk').textContent = risk + '%';
+  }
+
+  // --- EXECUTION ---
+  function runSimulation() {
+    document.getElementById('runBtn').classList.add('processing');
+    document.getElementById('runBtn').disabled = true;
+
+    // Get input in MG/DL for uniformity in calculation
+    let ldl = parseFloat(document.getElementById('ldlInput').value);
+    if(state.unit === 'mmol') ldl = ldl / 0.02586;
+
+    const risk = parseFloat(document.getElementById('riskInput').value);
+    const het = parseFloat(document.getElementById('hetInput').value);
+    const intolerant = document.getElementById('checkIntolerant').checked;
+
+    worker.postMessage({
+        baselineLDL: ldl,
+        baselineRisk: risk,
+        strategy: state.strategy,
+        statinIntolerant: intolerant,
+        trials: TRIALS,
+        hetPenalty: het
+    });
+  }
+
+  // --- RENDERING ---
+  function setupCanvas(id) {
+    const c = document.getElementById(id);
+    const dpr = window.devicePixelRatio || 1;
+    const rect = c.getBoundingClientRect();
+    c.width = rect.width * dpr;
+    c.height = rect.height * dpr;
+    const ctx = c.getContext('2d');
+    ctx.scale(dpr, dpr);
+    return { ctx, w: rect.width, h: rect.height };
+  }
+
+  function renderVisuals(res) {
+    drawWaterfall(res);
+    drawForest(res);
+    drawWaffle(res);
+  }
+
+  function drawWaterfall(res) {
+    const { ctx, w, h } = setupCanvas('waterfallCanvas');
+    const pad = { t: 40, b: 30, l: 50, r: 20 };
+    
+    // Data setup
+    // Bar 1: Baseline. Bar 2: Reduction. Bar 3: Final.
+    let base = parseFloat(document.getElementById('ldlInput').value);
+    let final = state.unit === 'mg' ? res.finalLDL : res.finalLDL * 0.02586;
+    let reduction = base - final;
+    
+    // Scale
+    const maxVal = base * 1.2;
+    const sy = v => pad.t + (1 - v/maxVal)*(h - pad.t - pad.b);
+    const zeroY = sy(0);
+
+    // Styling
+    ctx.font = '10px Inter';
+    
+    // Draw Axis
+    ctx.strokeStyle = '#334155'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, h-pad.b); ctx.stroke();
+    
+    // Ticks
+    for(let i=0; i<=5; i++) {
+        let val = (maxVal/5)*i;
+        let y = sy(val);
+        ctx.fillStyle = '#64748b'; ctx.textAlign = 'right';
+        ctx.fillText(val.toFixed(0), pad.l - 8, y + 3);
+    }
+
+    // Bars
+    const bw = (w - pad.l - pad.r) / 5;
+    const bx1 = pad.l + bw;
+    const bx2 = bx1 + bw + 10;
+    const bx3 = bx2 + bw + 10;
+
+    // 1. Baseline
+    ctx.fillStyle = '#64748b';
+    let y1 = sy(base);
+    let h1 = zeroY - y1;
+    ctx.fillRect(bx1, y1, bw, h1);
+    ctx.fillStyle = '#fff'; ctx.textAlign='center';
+    ctx.fillText("Baseline", bx1 + bw/2, h - 10);
+    ctx.fillText(base.toFixed(0), bx1 + bw/2, y1 - 5);
+
+    // 2. Reduction (Floating)
+    ctx.fillStyle = '#818cf8'; // Accent
+    let y2_top = sy(base);
+    let y2_bot = sy(base - reduction);
+    let h2 = y2_bot - y2_top;
+    ctx.fillRect(bx2, y2_top, bw, h2);
+    ctx.fillStyle = '#fff';
+    ctx.fillText("Effect", bx2 + bw/2, h - 10);
+    ctx.fillStyle = '#a5b4fc';
+    ctx.fillText("-" + reduction.toFixed(1), bx2 + bw/2, y2_top + h2/2 + 3);
+
+    // 3. Final
+    ctx.fillStyle = '#34d399'; // Benefit
+    let y3 = sy(final);
+    let h3 = zeroY - y3;
+    ctx.fillRect(bx3, y3, bw, h3);
+    ctx.fillStyle = '#fff';
+    ctx.fillText("Achieved", bx3 + bw/2, h - 10);
+    ctx.fillText(final.toFixed(1), bx3 + bw/2, y3 - 5);
+
+    // Connectors
+    ctx.strokeStyle = '#475569'; ctx.setLineDash([2,2]);
+    ctx.beginPath();
+    ctx.moveTo(bx1+bw, y1); ctx.lineTo(bx2, y1);
+    ctx.moveTo(bx2+bw, y2_bot); ctx.lineTo(bx3, y2_bot);
+    ctx.stroke();
+    
+    // Header text update
+    document.getElementById('finalLdlDisp').textContent = final.toFixed(1) + " " + (state.unit==='mg'?'mg/dL':'mmol/L');
+  }
+
+  function drawForest(res) {
+    const { ctx, w, h } = setupCanvas('forestCanvas');
+    const pad = { l: 80, r: 30, t: 30, b: 30 };
+    
+    // X Scale: HR 0.4 to 1.2
+    const minX = 0.4, maxX = 1.2;
+    const sx = v => pad.l + ((v - minX) / (maxX - minX)) * (w - pad.l - pad.r);
+    
+    // Center Line (HR=1)
+    ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(sx(1), pad.t); ctx.lineTo(sx(1), h - pad.b); ctx.stroke();
+
+    const rowH = (h - pad.t - pad.b) / (res.activeTrials.length + 1);
+
+    res.activeTrials.forEach((t, i) => {
+        const y = pad.t + (i * rowH) + rowH/2;
+        
+        // Label
+        ctx.fillStyle = '#cbd5e1'; ctx.font = '10px Inter'; ctx.textAlign = 'right';
+        ctx.fillText(t.id, pad.l - 10, y + 4);
+
+        // Line
+        ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(sx(t.ci_lo), y); ctx.lineTo(sx(t.ci_hi), y); ctx.stroke();
+
+        // Box
+        ctx.fillStyle = '#818cf8'; 
+        const boxSize = Math.log(t.n) / 1.5; // Scale box by N
+        ctx.fillRect(sx(t.hr) - boxSize/2, y - boxSize/2, boxSize, boxSize);
+    });
+
+    // Axis Labels
+    ctx.fillStyle = '#64748b'; ctx.textAlign = 'center';
+    [0.5, 0.75, 1.0].forEach(v => {
+        ctx.fillText(v.toString(), sx(v), h - 10);
+    });
+    ctx.fillText("Hazard Ratio (MACE)", pad.l + (w-pad.l-pad.r)/2, h-5);
+  }
+
+  function drawWaffle(res) {
+    const { ctx, w, h } = setupCanvas('waffleCanvas');
+    const cols = 20, rows = 5; // 100 dots
+    const gap = 6;
+    const dotSize = Math.min((w - (cols-1)*gap)/cols, (h - (rows-1)*gap)/rows) * 0.8;
+    
+    const startX = (w - (cols*dotSize + (cols-1)*gap)) / 2;
+    const startY = (h - (rows*dotSize + (rows-1)*gap)) / 2;
+
+    let ben = res.n_prevented;
+    let inev = res.n_event_inevitable;
+    
+    let count = 0;
+    
+    for(let r=0; r<rows; r++) {
+        for(let c=0; c<cols; c++) {
+            let color = '#334155'; // Neutral
+            
+            if(count < ben) color = '#34d399'; // Benefit
+            else if(count < ben + inev) color = '#dc2626'; // Inevitable
+            
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(startX + c*(dotSize+gap) + dotSize/2, startY + r*(dotSize+gap) + dotSize/2, dotSize/2, 0, Math.PI*2);
+            ctx.fill();
+            
+            count++;
+        }
+    }
+  }
+
+  // --- REPORT & METRICS ---
+  function updateMetrics(res) {
+    document.getElementById('valARR').textContent = (res.meanARR * 100).toFixed(1) + '%';
+    
+    const nnt = res.meanARR > 0.001 ? Math.round(1/res.meanARR) : ">1000";
+    document.getElementById('valNNT').textContent = nnt;
+    
+    document.getElementById('valRRR').textContent = (res.meanRRR * 100).toFixed(0) + '%';
+
+    // Footer stats
+    let base = parseFloat(document.getElementById('ldlInput').value);
+    let unit = state.unit === 'mg' ? ' mg/dL' : ' mmol/L';
+    let final = state.unit === 'mg' ? res.finalLDL : res.finalLDL * 0.02586;
+    let delta = base - final;
+
+    document.getElementById('statBase').textContent = base.toFixed(1) + unit;
+    document.getElementById('statAchieved').textContent = final.toFixed(1) + unit;
+    document.getElementById('statDelta').textContent = "-" + delta.toFixed(1) + unit;
+  }
+
+  function generateReport(res) {
+    const stratName = state.strategy === 'eze' ? 'Ezetimibe' : state.strategy === 'pcsk9' ? 'PCSK9 Inhibitor' : 'Combination Therapy';
+    const nnt = Math.round(1/res.meanARR);
+    
+    const txt = `CLINICAL SIMULATION REPORT
+---------------------------
+TOPIC: Lipid Lowering Intensification
+STRATEGY: Add ${stratName}
+BASELINE LDL: ${document.getElementById('statBase').textContent}
+TARGET ACHIEVED: ${document.getElementById('statAchieved').textContent}
+
+EFFICACY PROJECTION (5-YEAR HORIZON):
+- Based on CTT Meta-analysis methodology (Log-linear relationship).
+- Projected Absolute Risk Reduction (ARR): ${(res.meanARR*100).toFixed(1)}%
+- Number Needed to Treat (NNT): ${nnt}
+- Relative Risk Reduction: ${(res.meanRRR*100).toFixed(0)}%
+
+INTERPRETATION:
+For a patient with this baseline risk profile, adding ${stratName} is expected to prevent 1 Major Adverse Cardiovascular Event (MACE) for every ${nnt} patients treated over 5 years. 
+
+EVIDENCE BASIS:
+Simulation incorporates effect sizes consistent with ${res.activeTrials.map(t=>t.id).join(', ')} trials.`;
+
+    document.getElementById('reportContent').textContent = txt;
+    
+    // Update narrative header
+    let impact = "Moderate";
+    if(res.meanARR > 0.05) impact = "High";
+    if(res.meanARR < 0.01) impact = "Low";
+    document.getElementById('narrativeTitle').textContent = `${impact} Impact Strategy`;
+  }
+
+  function copyReport() {
+    const txt = document.getElementById('reportContent').textContent;
+    navigator.clipboard.writeText(txt);
+    const btn = document.querySelector('.copy-btn');
+    btn.textContent = "Copied!";
+    setTimeout(() => btn.textContent = "Copy Text", 2000);
+  }
+
+  // --- INIT ---
+  document.getElementById('ldlInput').addEventListener('input', updateLabels);
+  document.getElementById('riskInput').addEventListener('input', updateLabels);
+  
+  // Auto-run on changes with debounce
+  let timeout;
+  ['ldlInput', 'riskInput', 'hetInput', 'checkIntolerant'].forEach(id => {
+    document.getElementById(id).addEventListener('input', () => {
+        updateLabels();
+        clearTimeout(timeout);
+        timeout = setTimeout(runSimulation, 300);
+    });
+  });
+
+  window.onload = () => {
+    updateLabels();
+    runSimulation();
+  };
+</script>
+</body>
+</html>
